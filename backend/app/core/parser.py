@@ -12,11 +12,11 @@ def parse_requirements(text: str) -> ParsedRequirements:
     text = text.replace('\n', ' ').replace('\r', '')
     
     # Regex patterns (simplified for initial version)
-    cpu_pattern = r"(?i)(?:processor|cpu):\s*([^,;]+)"
-    gpu_pattern = r"(?i)(?:graphics|video card|gpu):\s*([^,;]+)"
-    ram_pattern = r"(?i)(?:memory|ram):\s*([^,;]+)"
-    storage_pattern = r"(?i)(?:storage|hard drive|space):\s*([^,;]+)"
-    os_pattern = r"(?i)(?:os|operating system):\s*([^,;]+)"
+    cpu_pattern = r"(?i)(?:processor|cpu|processador):\s*([^,;]+)"
+    gpu_pattern = r"(?i)(?:graphics|video card|gpu|placa de vídeo|video):\s*([^,;]+)"
+    ram_pattern = r"(?i)(?:memory|ram|memória):\s*([^,;]+)"
+    storage_pattern = r"(?i)(?:storage|hard drive|space|available space|armazenamento|espaço):\s*([^,;]+)"
+    os_pattern = r"(?i)(?:os|operating system|sistema operacional|so):\s*([^,;]+)"
 
     cpu_match = re.search(cpu_pattern, text)
     gpu_match = re.search(gpu_pattern, text)

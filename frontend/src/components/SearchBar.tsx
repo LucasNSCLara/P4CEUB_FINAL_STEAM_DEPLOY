@@ -90,7 +90,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, loading }) => {
                         type="text"
                         value={term}
                         onChange={(e) => setTerm(e.target.value)}
-                        placeholder="Search for any game (e.g., Cyberpunk 2077)..."
+                        placeholder="Busque um jogo (ex: Cyberpunk 2077)..."
                         className="w-full px-8 py-5 text-xl bg-black bg-opacity-80 backdrop-blur-md text-white rounded-full border border-gray-800 focus:border-game-accent focus:outline-none shadow-2xl transition-all placeholder-gray-500"
                         disabled={loading}
                     />
@@ -109,42 +109,44 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, loading }) => {
             </form>
 
             {/* Autocomplete Dropdown */}
-            {showDropdown && suggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-2 bg-game-card backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl">
-                    {suggestions.map((game) => (
-                        <button
-                            key={game.id}
-                            onClick={() => handleSelectGame(game)}
-                            className="w-full flex items-center gap-4 p-3 hover:bg-white/5 transition-colors duration-200 text-left"
-                        >
-                            {game.background_image ? (
-                                <img
-                                    src={game.background_image}
-                                    alt={game.name}
-                                    className="w-16 h-16 object-cover rounded-lg"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
-                                    <FaSearch className="text-gray-500" />
+            {
+                showDropdown && suggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-2 bg-game-card backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+                        {suggestions.map((game) => (
+                            <button
+                                key={game.id}
+                                onClick={() => handleSelectGame(game)}
+                                className="w-full flex items-center gap-4 p-3 hover:bg-white/5 transition-colors duration-200 text-left"
+                            >
+                                {game.background_image ? (
+                                    <img
+                                        src={game.background_image}
+                                        alt={game.name}
+                                        className="w-16 h-16 object-cover rounded-lg"
+                                    />
+                                ) : (
+                                    <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
+                                        <FaSearch className="text-gray-500" />
+                                    </div>
+                                )}
+                                <div className="flex-1">
+                                    <h3 className="text-white font-semibold">{game.name}</h3>
+                                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                                        {game.released && <span>{game.released}</span>}
+                                        {game.rating > 0 && (
+                                            <>
+                                                <span>•</span>
+                                                <span className="text-game-accent">★ {game.rating}</span>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
-                            <div className="flex-1">
-                                <h3 className="text-white font-semibold">{game.name}</h3>
-                                <div className="flex items-center gap-2 text-sm text-gray-400">
-                                    {game.released && <span>{game.released}</span>}
-                                    {game.rating > 0 && (
-                                        <>
-                                            <span>•</span>
-                                            <span className="text-game-accent">★ {game.rating}</span>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
+                            </button>
+                        ))}
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

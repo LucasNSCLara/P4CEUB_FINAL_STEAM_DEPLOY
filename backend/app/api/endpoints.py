@@ -81,7 +81,7 @@ async def get_game_details(game_name: str):
         
         # Get detailed info
         detail_url = f"{RAWG_BASE_URL}/games/{game_slug}"
-        detail_response = requests.get(detail_url, params={"key": settings.RAWG_API_KEY})
+        detail_response = requests.get(detail_url, params={"key": settings.RAWG_API_KEY, "language": "por"})
         detail_response.raise_for_status()
         game_data = detail_response.json()
         
@@ -113,8 +113,28 @@ async def get_game_details(game_name: str):
             developers=game_data.get("developers"),
             publishers=game_data.get("publishers"),
             parsed_requirements_min=parsed_min,
-            parsed_requirements_rec=parsed_rec
+            parsed_requirements_rec=parsed_rec,
+            file_size=parsed_min.storage if parsed_min.storage else parsed_rec.storage,
+            similar_games=[]
         )
+
+        # Fetch similar games
+        try:
+            suggested_url = f"{RAWG_BASE_URL}/games/{game_data['id']}/suggested"
+            suggested_response = requests.get(suggested_url, params={"key": settings.RAWG_API_KEY, "page_size": 2})
+            if suggested_response.status_code == 200:
+                suggested_data = suggested_response.json()
+                game_obj.similar_games = [
+                    {
+                        "id": g.get("id"),
+                        "name": g.get("name"),
+                        "background_image": g.get("background_image"),
+                        "genres": g.get("genres", [])[:1] # Get first genre as tag
+                    }
+                    for g in suggested_data.get("results", [])[:2]
+                ]
+        except Exception as e:
+            print(f"Failed to fetch similar games: {e}")
         
         # Cache result (expire in 1 hour)
         if r:

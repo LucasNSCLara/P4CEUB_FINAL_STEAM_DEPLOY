@@ -39,19 +39,19 @@ const RequirementsCard: React.FC<RequirementsCardProps> = ({ title, requirements
             <div className="bg-game-dark bg-opacity-40 p-6 h-full rounded-xl backdrop-blur-sm">
                 <div className="flex items-center justify-between mb-6">
                     <h3 className={`text-xl font-bold ${isRec ? 'text-white' : 'text-gray-300'}`}>{title}</h3>
-                    {isRec && <span className="px-3 py-1 bg-game-accent bg-opacity-20 text-game-accent text-xs font-bold rounded-full border border-game-accent border-opacity-30">BEST EXPERIENCE</span>}
+                    {isRec && <span className="px-3 py-1 bg-game-accent bg-opacity-20 text-game-accent text-xs font-bold rounded-full border border-game-accent border-opacity-30">MELHOR EXPERIÊNCIA</span>}
                 </div>
 
                 {requirements ? (
                     <div className="space-y-1">
-                        <RequirementRow icon={<FaWindows />} label="OS" value={requirements.os} />
-                        <RequirementRow icon={<FaMicrochip />} label="Processor" value={requirements.cpu} />
-                        <RequirementRow icon={<FaVideo />} label="Graphics" value={requirements.gpu} />
-                        <RequirementRow icon={<FaMemory />} label="Memory" value={requirements.ram} />
-                        <RequirementRow icon={<FaHdd />} label="Storage" value={requirements.storage} />
+                        <RequirementRow icon={<FaWindows />} label="Sistema Operacional" value={requirements.os} />
+                        <RequirementRow icon={<FaMicrochip />} label="Processador" value={requirements.cpu} />
+                        <RequirementRow icon={<FaVideo />} label="Placa de Vídeo" value={requirements.gpu} />
+                        <RequirementRow icon={<FaMemory />} label="Memória" value={requirements.ram} />
+                        <RequirementRow icon={<FaHdd />} label="Armazenamento" value={requirements.storage} />
                     </div>
                 ) : (
-                    <p className="text-gray-500 italic p-4 text-center">{rawText || "No detailed requirements available."}</p>
+                    <p className="text-gray-500 italic p-4 text-center">{rawText || "Requisitos detalhados não disponíveis."}</p>
                 )}
             </div>
         </div>

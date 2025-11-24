@@ -30,3 +30,5 @@ class Game(BaseModel):
     # Custom fields for our dashboard
     parsed_requirements_min: Optional[ParsedRequirements] = None
     parsed_requirements_rec: Optional[ParsedRequirements] = None
+    file_size: Optional[str] = None
+    similar_games: Optional[List[dict]] = None
