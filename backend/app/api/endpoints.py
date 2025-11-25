@@ -155,20 +155,34 @@ async def get_game_details(game_name: str):
             # Fallback: If suggested endpoint fails or returns empty, search by genre
             if not game_obj.similar_games and game_data.get("genres"):
                 print("Suggested endpoint empty, trying genre-based search...")
-                genre_ids = [g.get("id") for g in game_data.get("genres", [])[:1]]
+                # Get all genre IDs from the current game
+                genre_ids = [str(g.get("id")) for g in game_data.get("genres", [])]
+                
                 if genre_ids:
+                    # Search for games with the same genres
                     search_url = f"{RAWG_BASE_URL}/games"
                     search_params = {
                         "key": settings.RAWG_API_KEY,
-                        "genres": genre_ids[0],
-                        "page_size": 3,
-                        "ordering": "-rating"
+                        "genres": ",".join(genre_ids[:3]),  # Use up to 3 genres for better matching
+                        "page_size": 10,  # Get more to filter better
+                        "ordering": "-rating",  # Order by rating
+                        "metacritic": "70,100"  # Only well-rated games
                     }
+                    print(f"Searching with genres: {','.join(genre_ids[:3])}")
                     search_response = requests.get(search_url, params=search_params, timeout=10)
+                    
                     if search_response.status_code == 200:
                         search_data = search_response.json()
-                        # Filter out the current game and take 2
-                        similar = [g for g in search_data.get("results", []) if g.get("id") != game_data["id"]][:2]
+                        all_results = search_data.get("results", [])
+                        
+                        # Filter out the current game and games without images
+                        similar = [
+                            g for g in all_results 
+                            if g.get("id") != game_data["id"] 
+                            and g.get("background_image")
+                            and g.get("rating", 0) > 3.5  # Only games with decent ratings
+                        ][:2]
+                        
                         game_obj.similar_games = [
                             {
                                 "id": g.get("id"),
