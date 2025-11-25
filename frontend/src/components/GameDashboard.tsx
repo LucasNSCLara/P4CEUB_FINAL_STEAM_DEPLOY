@@ -48,7 +48,8 @@ const GameDashboard: React.FC = () => {
 
         try {
             // Replace with your actual backend URL
-            const response = await axios.get(`http://localhost:8000/api/game/${term}`);
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await axios.get(`${apiUrl}/api/game/${term}`);
             setGame(response.data);
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Falha ao buscar dados do jogo. Por favor, tente novamente.');

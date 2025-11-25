@@ -5,10 +5,8 @@ from app.api import endpoints
 app = FastAPI(title="GameSphere Analytics API")
 
 # CORS configuration
-origins = [
-    "http://localhost:3000",
-    "http://localhost:5173",  # Vite default
-]
+from app.core.config import settings
+origins = settings.ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
