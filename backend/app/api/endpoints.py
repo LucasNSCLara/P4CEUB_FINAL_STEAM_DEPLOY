@@ -135,6 +135,7 @@ async def get_game_details(game_name: str):
                         "id": g.get("id"),
                         "name": g.get("name"),
                         "background_image": g.get("background_image"),
+                        "rating": g.get("rating"),
                         "genres": g.get("genres", [])[:1]
                     }
                     for g in suggested_data.get("results", [])[:2]

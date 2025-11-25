@@ -26,6 +26,7 @@ interface GameData {
         id: number;
         name: string;
         background_image?: string;
+        rating?: number;
         genres?: Array<{ name: string }>;
     }>;
 }
@@ -240,8 +241,8 @@ const GameDashboard: React.FC = () => {
                                 >
                                     <FaHeart
                                         className={`text-2xl transition-colors ${favorites.some(fav => fav.id === game.id)
-                                                ? 'text-game-accent'
-                                                : 'text-gray-400'
+                                            ? 'text-game-accent'
+                                            : 'text-gray-400'
                                             }`}
                                     />
                                 </button>
@@ -407,13 +408,21 @@ const GameDashboard: React.FC = () => {
                                                     className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
                                                 />
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                                                <div className="absolute bottom-4 left-4">
-                                                    <h3 className="text-2xl font-bold text-white mb-1">{simGame.name}</h3>
-                                                    {simGame.genres && simGame.genres.length > 0 && (
-                                                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white">
-                                                            {simGame.genres[0].name}
-                                                        </span>
-                                                    )}
+                                                <div className="absolute bottom-4 left-4 right-4">
+                                                    <h3 className="text-2xl font-bold text-white mb-2">{simGame.name}</h3>
+                                                    <div className="flex items-center gap-3 flex-wrap">
+                                                        {simGame.genres && simGame.genres.length > 0 && (
+                                                            <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white">
+                                                                {simGame.genres[0].name}
+                                                            </span>
+                                                        )}
+                                                        {simGame.rating && simGame.rating > 0 && (
+                                                            <div className="flex items-center gap-1 bg-game-accent bg-opacity-20 px-2 py-1 rounded">
+                                                                <FaStar className="text-game-accent text-xs" />
+                                                                <span className="text-white font-bold text-sm">{simGame.rating}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
