@@ -127,26 +127,59 @@ async def get_game_details(game_name: str):
         # Fetch similar games
         game_obj.similar_games = []  # Initialize empty list
         try:
+            # Try the suggested endpoint first
             suggested_url = f"{RAWG_BASE_URL}/games/{game_data['id']}/suggested"
             print(f"Fetching similar games from: {suggested_url}")
             suggested_response = requests.get(suggested_url, params={"key": settings.RAWG_API_KEY, "page_size": 2}, timeout=10)
             print(f"Similar games response status: {suggested_response.status_code}")
+            
             if suggested_response.status_code == 200:
                 suggested_data = suggested_response.json()
-                print(f"Similar games data: {suggested_data.get('results', [])}")
-                game_obj.similar_games = [
-                    {
-                        "id": g.get("id"),
-                        "name": g.get("name"),
-                        "background_image": g.get("background_image"),
-                        "rating": g.get("rating"),
-                        "genres": g.get("genres", [])[:1]
+                results = suggested_data.get("results", [])
+                print(f"Similar games from suggested endpoint: {len(results)}")
+                
+                # If suggested endpoint returns games, use them
+                if results:
+                    game_obj.similar_games = [
+                        {
+                            "id": g.get("id"),
+                            "name": g.get("name"),
+                            "background_image": g.get("background_image"),
+                            "rating": g.get("rating"),
+                            "genres": g.get("genres", [])[:1]
+                        }
+                        for g in results[:2]
+                    ]
+                    print(f"Similar games fetched from suggested: {len(game_obj.similar_games)}")
+            
+            # Fallback: If suggested endpoint fails or returns empty, search by genre
+            if not game_obj.similar_games and game_data.get("genres"):
+                print("Suggested endpoint empty, trying genre-based search...")
+                genre_ids = [g.get("id") for g in game_data.get("genres", [])[:1]]
+                if genre_ids:
+                    search_url = f"{RAWG_BASE_URL}/games"
+                    search_params = {
+                        "key": settings.RAWG_API_KEY,
+                        "genres": genre_ids[0],
+                        "page_size": 3,
+                        "ordering": "-rating"
                     }
-                    for g in suggested_data.get("results", [])[:2]
-                ]
-                print(f"Similar games fetched: {len(game_obj.similar_games)}")
-            else:
-                print(f"Failed to fetch similar games: HTTP {suggested_response.status_code}")
+                    search_response = requests.get(search_url, params=search_params, timeout=10)
+                    if search_response.status_code == 200:
+                        search_data = search_response.json()
+                        # Filter out the current game and take 2
+                        similar = [g for g in search_data.get("results", []) if g.get("id") != game_data["id"]][:2]
+                        game_obj.similar_games = [
+                            {
+                                "id": g.get("id"),
+                                "name": g.get("name"),
+                                "background_image": g.get("background_image"),
+                                "rating": g.get("rating"),
+                                "genres": g.get("genres", [])[:1]
+                            }
+                            for g in similar
+                        ]
+                        print(f"Similar games fetched from genre search: {len(game_obj.similar_games)}")
         except Exception as e:
             print(f"Exception fetching similar games: {e}")
             import traceback
