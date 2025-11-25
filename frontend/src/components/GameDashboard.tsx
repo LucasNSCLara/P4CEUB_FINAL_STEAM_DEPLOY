@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import SearchBar from './SearchBar';
 import RequirementsCard from './RequirementsCard';
 import LoginModal from './LoginModal';
-import { FaGamepad, FaCheckCircle, FaTimesCircle, FaStar, FaClock, FaTrophy, FaUserCircle } from 'react-icons/fa';
+import FavoritesModal from './FavoritesModal';
+import { FaGamepad, FaCheckCircle, FaTimesCircle, FaStar, FaClock, FaTrophy, FaUserCircle, FaHeart, FaSignOutAlt } from 'react-icons/fa';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 
@@ -39,6 +40,63 @@ const GameDashboard: React.FC = () => {
     // Auth State
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const [user, setUser] = useState<string | null>(null);
+    const [showUserMenu, setShowUserMenu] = useState(false);
+
+    // Favorites State
+    const [favorites, setFavorites] = useState<Array<{ id: number; name: string; background_image?: string; rating?: number }>>([]);
+    const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+
+    // Load favorites from localStorage on mount and when user changes
+    useEffect(() => {
+        if (user) {
+            const storedFavorites = localStorage.getItem(`favorites_${user}`);
+            if (storedFavorites) {
+                setFavorites(JSON.parse(storedFavorites));
+            }
+        } else {
+            setFavorites([]);
+        }
+    }, [user]);
+
+    const toggleFavorite = () => {
+        if (!user) {
+            setIsLoginOpen(true);
+            return;
+        }
+
+        if (!game) return;
+
+        const isFavorited = favorites.some(fav => fav.id === game.id);
+
+        let newFavorites;
+        if (isFavorited) {
+            newFavorites = favorites.filter(fav => fav.id !== game.id);
+        } else {
+            newFavorites = [...favorites, {
+                id: game.id,
+                name: game.name,
+                background_image: game.background_image,
+                rating: game.rating
+            }];
+        }
+
+        setFavorites(newFavorites);
+        localStorage.setItem(`favorites_${user}`, JSON.stringify(newFavorites));
+    };
+
+    const removeFavorite = (gameId: number) => {
+        const newFavorites = favorites.filter(fav => fav.id !== gameId);
+        setFavorites(newFavorites);
+        if (user) {
+            localStorage.setItem(`favorites_${user}`, JSON.stringify(newFavorites));
+        }
+    };
+
+    const handleLogout = () => {
+        setUser(null);
+        setShowUserMenu(false);
+        setFavorites([]);
+    };
 
     const handleSearch = async (term: string) => {
         setLoading(true);
@@ -100,9 +158,40 @@ const GameDashboard: React.FC = () => {
                 {/* Auth Button */}
                 <div className="absolute top-4 right-4 md:top-8 md:right-8">
                     {user ? (
-                        <div className="flex items-center gap-3 bg-white bg-opacity-10 px-4 py-2 rounded-full border border-white border-opacity-10 backdrop-blur-md">
-                            <span className="font-bold text-sm">{user}</span>
-                            <FaUserCircle className="text-2xl text-game-accent" />
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                className="flex items-center gap-3 bg-white bg-opacity-10 px-4 py-2 rounded-full border border-white border-opacity-10 backdrop-blur-md hover:bg-opacity-20 transition-all"
+                            >
+                                <span className="font-bold text-sm">{user}</span>
+                                <FaUserCircle className="text-2xl text-game-accent" />
+                            </button>
+
+                            {/* User Dropdown Menu */}
+                            {showUserMenu && (
+                                <div className="absolute right-0 mt-2 w-56 bg-game-card backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-fade-in">
+                                    <button
+                                        onClick={() => {
+                                            setIsFavoritesOpen(true);
+                                            setShowUserMenu(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                                    >
+                                        <FaHeart className="text-game-accent" />
+                                        <div>
+                                            <div className="text-white font-semibold">Meus Favoritos</div>
+                                            <div className="text-gray-400 text-xs">{favorites.length} jogos</div>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left border-t border-white/5"
+                                    >
+                                        <FaSignOutAlt className="text-red-400" />
+                                        <div className="text-white font-semibold">Sair</div>
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <button
@@ -143,6 +232,20 @@ const GameDashboard: React.FC = () => {
                                 className="w-full h-full object-cover transition duration-700 group-hover:scale-105"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-game-dark via-game-dark/80 to-transparent flex flex-col justify-end p-10 md:p-16">
+                                {/* Favorite Button */}
+                                <button
+                                    onClick={toggleFavorite}
+                                    className="absolute top-6 right-6 bg-black bg-opacity-60 hover:bg-opacity-80 p-4 rounded-full transition-all transform hover:scale-110 backdrop-blur-sm border border-white border-opacity-10"
+                                    title={favorites.some(fav => fav.id === game.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                                >
+                                    <FaHeart
+                                        className={`text-2xl transition-colors ${favorites.some(fav => fav.id === game.id)
+                                                ? 'text-game-accent'
+                                                : 'text-gray-400'
+                                            }`}
+                                    />
+                                </button>
+
                                 <div className="flex flex-wrap items-center gap-4 mb-4">
                                     <span className="px-4 py-1.5 bg-white bg-opacity-10 backdrop-blur-md border border-white border-opacity-20 rounded-full text-sm font-bold tracking-wider uppercase">
                                         {game.released?.split('-')[0]}
@@ -322,6 +425,15 @@ const GameDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Favorites Modal */}
+            <FavoritesModal
+                isOpen={isFavoritesOpen}
+                onClose={() => setIsFavoritesOpen(false)}
+                favorites={favorites}
+                onRemoveFavorite={removeFavorite}
+                onSelectGame={handleSearch}
+            />
         </div>
     );
 };
