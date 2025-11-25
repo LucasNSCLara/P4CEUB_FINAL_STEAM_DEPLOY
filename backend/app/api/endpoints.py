@@ -125,11 +125,15 @@ async def get_game_details(game_name: str):
         )
 
         # Fetch similar games
+        game_obj.similar_games = []  # Initialize empty list
         try:
             suggested_url = f"{RAWG_BASE_URL}/games/{game_data['id']}/suggested"
+            print(f"Fetching similar games from: {suggested_url}")
             suggested_response = requests.get(suggested_url, params={"key": settings.RAWG_API_KEY, "page_size": 2}, timeout=10)
+            print(f"Similar games response status: {suggested_response.status_code}")
             if suggested_response.status_code == 200:
                 suggested_data = suggested_response.json()
+                print(f"Similar games data: {suggested_data.get('results', [])}")
                 game_obj.similar_games = [
                     {
                         "id": g.get("id"),
@@ -141,8 +145,12 @@ async def get_game_details(game_name: str):
                     for g in suggested_data.get("results", [])[:2]
                 ]
                 print(f"Similar games fetched: {len(game_obj.similar_games)}")
+            else:
+                print(f"Failed to fetch similar games: HTTP {suggested_response.status_code}")
         except Exception as e:
-            print(f"Failed to fetch similar games: {e}")
+            print(f"Exception fetching similar games: {e}")
+            import traceback
+            traceback.print_exc()
         
         # Cache result (expire in 1 hour)
         if r:
