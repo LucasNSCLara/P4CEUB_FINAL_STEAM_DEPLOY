@@ -109,6 +109,8 @@ const GameDashboard: React.FC = () => {
             // Replace with your actual backend URL
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
             const response = await axios.get(`${apiUrl}/api/game/${term}`);
+            console.log('Game data received:', response.data);
+            console.log('Similar games:', response.data.similar_games);
             setGame(response.data);
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Falha ao buscar dados do jogo. Por favor, tente novamente.');
