@@ -70,30 +70,36 @@ async def get_game_details(game_name: str):
     }
     
     try:
-        response = requests.get(search_url, params=params)
+        print(f"Searching for game: {game_name}")
+        response = requests.get(search_url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
+        print(f"Search response received, results count: {len(data.get('results', []))}")
         
-        if not data["results"]:
+        if not data.get("results"):
             raise HTTPException(status_code=404, detail="Game not found")
             
         game_slug = data["results"][0]["slug"]
+        print(f"Found game slug: {game_slug}")
         
         # Get detailed info
         detail_url = f"{RAWG_BASE_URL}/games/{game_slug}"
-        detail_response = requests.get(detail_url, params={"key": settings.RAWG_API_KEY, "language": "por"})
+        print(f"Fetching game details from: {detail_url}")
+        detail_response = requests.get(detail_url, params={"key": settings.RAWG_API_KEY, "language": "por"}, timeout=10)
         detail_response.raise_for_status()
         game_data = detail_response.json()
+        print(f"Game details received for: {game_data.get('name')}")
         
         # Parse requirements
         platforms = game_data.get("platforms", [])
         pc_requirements = {}
         
         for p in platforms:
-            if p["platform"]["slug"] == "pc":
+            if p.get("platform", {}).get("slug") == "pc":
                 pc_requirements = p.get("requirements", {})
                 break
         
+        print(f"PC requirements found: {bool(pc_requirements)}")
         parsed_min = parse_requirements(pc_requirements.get("minimum", ""))
         parsed_rec = parse_requirements(pc_requirements.get("recommended", ""))
         
@@ -121,7 +127,7 @@ async def get_game_details(game_name: str):
         # Fetch similar games
         try:
             suggested_url = f"{RAWG_BASE_URL}/games/{game_data['id']}/suggested"
-            suggested_response = requests.get(suggested_url, params={"key": settings.RAWG_API_KEY, "page_size": 2})
+            suggested_response = requests.get(suggested_url, params={"key": settings.RAWG_API_KEY, "page_size": 2}, timeout=10)
             if suggested_response.status_code == 200:
                 suggested_data = suggested_response.json()
                 game_obj.similar_games = [
@@ -129,10 +135,11 @@ async def get_game_details(game_name: str):
                         "id": g.get("id"),
                         "name": g.get("name"),
                         "background_image": g.get("background_image"),
-                        "genres": g.get("genres", [])[:1] # Get first genre as tag
+                        "genres": g.get("genres", [])[:1]
                     }
                     for g in suggested_data.get("results", [])[:2]
                 ]
+                print(f"Similar games fetched: {len(game_obj.similar_games)}")
         except Exception as e:
             print(f"Failed to fetch similar games: {e}")
         
@@ -140,10 +147,22 @@ async def get_game_details(game_name: str):
         if r:
             try:
                 r.setex(cache_key, 3600, game_obj.json())
+                print(f"Game cached successfully")
             except Exception as e:
                 print(f"Redis cache write failed: {e}")
             
         return game_obj
 
+    except HTTPException:
+        raise
+    except requests.Timeout as e:
+        print(f"Request timeout: {e}")
+        raise HTTPException(status_code=504, detail="Request to RAWG API timed out")
     except requests.RequestException as e:
+        print(f"Request error: {e}")
         raise HTTPException(status_code=502, detail=f"Error communicating with RAWG API: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error in get_game_details: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
