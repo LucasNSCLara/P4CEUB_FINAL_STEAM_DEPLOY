@@ -1,8 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import endpoints
+from app.core import database
 
 app = FastAPI(title="GameSphere Analytics API")
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    database.init_database()
 
 # CORS configuration
 from app.core.config import settings

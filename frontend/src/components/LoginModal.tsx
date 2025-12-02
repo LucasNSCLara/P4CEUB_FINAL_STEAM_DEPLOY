@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { FaTimes, FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
+import axios from 'axios';
 
 interface LoginModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onLogin: (username: string) => void;
+    onLogin: (username: string, token: string) => void;
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => {
@@ -14,15 +15,51 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
         email: '',
         password: ''
     });
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Simulate login/signup
-        const username = activeTab === 'signup' ? formData.name : formData.email.split('@')[0];
-        onLogin(username || 'Usuário');
-        onClose();
+        setError('');
+        setLoading(true);
+
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+            if (activeTab === 'signup') {
+                // Register new user
+                const response = await axios.post(`${apiUrl}/api/auth/register`, {
+                    username: formData.name,
+                    email: formData.email,
+                    password: formData.password
+                });
+
+                // Store token and login
+                localStorage.setItem('auth_token', response.data.token);
+                localStorage.setItem('user_id', response.data.user_id.toString());
+                onLogin(response.data.username, response.data.token);
+                onClose();
+            } else {
+                // Login existing user
+                const response = await axios.post(`${apiUrl}/api/auth/login`, {
+                    email: formData.email,
+                    password: formData.password
+                });
+
+                // Store token and login
+                localStorage.setItem('auth_token', response.data.token);
+                localStorage.setItem('user_id', response.data.user_id.toString());
+                onLogin(response.data.username, response.data.token);
+                onClose();
+            }
+        } catch (err: any) {
+            console.error('Authentication error:', err);
+            setError(err.response?.data?.detail || 'Erro ao autenticar. Tente novamente.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -42,17 +79,30 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
                 <div className="flex p-2 bg-black bg-opacity-20">
                     <button
                         className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'login' ? 'bg-game-accent text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                        onClick={() => setActiveTab('login')}
+                        onClick={() => {
+                            setActiveTab('login');
+                            setError('');
+                        }}
                     >
                         Login
                     </button>
                     <button
                         className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'signup' ? 'bg-game-accent text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                        onClick={() => setActiveTab('signup')}
+                        onClick={() => {
+                            setActiveTab('signup');
+                            setError('');
+                        }}
                     >
                         Cadastro
                     </button>
                 </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="mx-6 mt-4 p-3 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg text-red-400 text-sm">
+                        {error}
+                    </div>
+                )}
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-8 space-y-6">
@@ -99,15 +149,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                 required
+                                minLength={6}
                             />
                         </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-game-accent to-emerald-600 hover:from-game-accent-hover hover:to-emerald-500 text-black font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] shadow-lg shadow-emerald-900/20 mt-4"
+                        disabled={loading}
+                        className="w-full bg-gradient-to-r from-game-accent to-emerald-600 hover:from-game-accent-hover hover:to-emerald-500 text-black font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] shadow-lg shadow-emerald-900/20 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {activeTab === 'login' ? 'Entrar' : 'Cadastrar'}
+                        {loading ? 'Processando...' : (activeTab === 'login' ? 'Entrar' : 'Cadastrar')}
                     </button>
                 </form>
             </div>

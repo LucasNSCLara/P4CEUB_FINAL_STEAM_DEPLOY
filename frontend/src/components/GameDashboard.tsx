@@ -36,67 +36,116 @@ const GameDashboard: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [userSpecs, setUserSpecs] = useState({ cpu: '', gpu: '', ram: '' });
-    const [canRunResult, setCanRunResult] = useState<{ min: boolean; rec: boolean } | null>(null);
+    const [canRunResult, setCanRunResult] = useState<{ min: boolean; rec: boolean; details?: any } | null>(null);
 
     // Auth State
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const [user, setUser] = useState<string | null>(null);
+    const [authToken, setAuthToken] = useState<string | null>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
 
     // Favorites State
-    const [favorites, setFavorites] = useState<Array<{ id: number; name: string; background_image?: string; rating?: number }>>([]);
+    const [favorites, setFavorites] = useState<Array<{ game_id: number; game_name: string; game_image?: string; game_rating?: number }>>([]);
     const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
 
-    // Load favorites from localStorage on mount and when user changes
+    // Load auth token and favorites on mount
     useEffect(() => {
-        if (user) {
-            const storedFavorites = localStorage.getItem(`favorites_${user}`);
-            if (storedFavorites) {
-                setFavorites(JSON.parse(storedFavorites));
-            }
+        const token = localStorage.getItem('auth_token');
+        const username = localStorage.getItem('username');
+        if (token && username) {
+            setAuthToken(token);
+            setUser(username);
+        }
+    }, []);
+
+    // Load favorites from backend when user logs in
+    useEffect(() => {
+        if (user && authToken) {
+            loadFavorites();
         } else {
             setFavorites([]);
         }
-    }, [user]);
+    }, [user, authToken]);
 
-    const toggleFavorite = () => {
-        if (!user) {
+    const loadFavorites = async () => {
+        if (!authToken) return;
+
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await axios.get(`${apiUrl}/api/favorites`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            setFavorites(response.data);
+        } catch (error) {
+            console.error('Error loading favorites:', error);
+        }
+    };
+
+    const toggleFavorite = async () => {
+        if (!user || !authToken) {
             setIsLoginOpen(true);
             return;
         }
 
         if (!game) return;
 
-        const isFavorited = favorites.some(fav => fav.id === game.id);
+        const isFavorited = favorites.some(fav => fav.game_id === game.id);
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-        let newFavorites;
-        if (isFavorited) {
-            newFavorites = favorites.filter(fav => fav.id !== game.id);
-        } else {
-            newFavorites = [...favorites, {
-                id: game.id,
-                name: game.name,
-                background_image: game.background_image,
-                rating: game.rating
-            }];
+        try {
+            if (isFavorited) {
+                // Remove from favorites
+                await axios.delete(`${apiUrl}/api/favorites/${game.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+            } else {
+                // Add to favorites
+                await axios.post(`${apiUrl}/api/favorites`, {
+                    game_id: game.id,
+                    game_name: game.name,
+                    game_image: game.background_image,
+                    game_rating: game.rating
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+            }
+            // Reload favorites
+            await loadFavorites();
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
         }
-
-        setFavorites(newFavorites);
-        localStorage.setItem(`favorites_${user}`, JSON.stringify(newFavorites));
     };
 
-    const removeFavorite = (gameId: number) => {
-        const newFavorites = favorites.filter(fav => fav.id !== gameId);
-        setFavorites(newFavorites);
-        if (user) {
-            localStorage.setItem(`favorites_${user}`, JSON.stringify(newFavorites));
+    const removeFavorite = async (gameId: number) => {
+        if (!authToken) return;
+
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            await axios.delete(`${apiUrl}/api/favorites/${gameId}`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            await loadFavorites();
+        } catch (error) {
+            console.error('Error removing favorite:', error);
         }
     };
 
     const handleLogout = () => {
         setUser(null);
+        setAuthToken(null);
         setShowUserMenu(false);
         setFavorites([]);
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_id');
+        localStorage.removeItem('username');
     };
 
     const handleSearch = async (term: string) => {
@@ -120,13 +169,33 @@ const GameDashboard: React.FC = () => {
         }
     };
 
-    const checkCanRun = () => {
+    const checkCanRun = async () => {
         if (!game) return;
         const hasSpecs = userSpecs.cpu && userSpecs.gpu && userSpecs.ram;
-        setCanRunResult({
-            min: !!hasSpecs,
-            rec: !!hasSpecs && parseInt(userSpecs.ram) >= 16
-        });
+
+        if (!hasSpecs) {
+            alert('Por favor, preencha todas as especificações (CPU, GPU e RAM)');
+            return;
+        }
+
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await axios.post(`${apiUrl}/api/compare`, {
+                game_id: game.id,
+                user_cpu: userSpecs.cpu,
+                user_gpu: userSpecs.gpu,
+                user_ram: userSpecs.ram
+            });
+
+            setCanRunResult({
+                min: response.data.can_run_minimum,
+                rec: response.data.can_run_recommended,
+                details: response.data.details
+            });
+        } catch (error) {
+            console.error('Error comparing specs:', error);
+            alert('Erro ao comparar especificações. Tente novamente.');
+        }
     };
 
     const ratingData = {
@@ -146,7 +215,11 @@ const GameDashboard: React.FC = () => {
             <LoginModal
                 isOpen={isLoginOpen}
                 onClose={() => setIsLoginOpen(false)}
-                onLogin={(username) => setUser(username)}
+                onLogin={(username, token) => {
+                    setUser(username);
+                    setAuthToken(token);
+                    localStorage.setItem('username', username);
+                }}
             />
 
             {/* Background Image Overlay */}
@@ -239,10 +312,10 @@ const GameDashboard: React.FC = () => {
                                 <button
                                     onClick={toggleFavorite}
                                     className="absolute top-6 right-6 bg-black bg-opacity-60 hover:bg-opacity-80 p-4 rounded-full transition-all transform hover:scale-110 backdrop-blur-sm border border-white border-opacity-10"
-                                    title={favorites.some(fav => fav.id === game.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                                    title={favorites.some(fav => fav.game_id === game.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                                 >
                                     <FaHeart
-                                        className={`text-2xl transition-colors ${favorites.some(fav => fav.id === game.id)
+                                        className={`text-2xl transition-colors ${favorites.some(fav => fav.game_id === game.id)
                                             ? 'text-game-accent'
                                             : 'text-gray-400'
                                             }`}
@@ -322,6 +395,16 @@ const GameDashboard: React.FC = () => {
                                 <h3 className="text-lg font-bold text-gray-400 mb-6 uppercase tracking-widest">Roda no meu PC?</h3>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase ml-1">CPU</label>
+                                        <input
+                                            type="text"
+                                            placeholder="ex: i5-12400"
+                                            className="w-full bg-black bg-opacity-40 border border-gray-700 rounded-xl p-3 text-white focus:border-game-accent focus:outline-none transition-colors"
+                                            value={userSpecs.cpu}
+                                            onChange={(e) => setUserSpecs({ ...userSpecs, cpu: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
                                         <label className="text-xs font-bold text-gray-500 uppercase ml-1">RAM (GB)</label>
                                         <input
                                             type="text"
@@ -348,13 +431,38 @@ const GameDashboard: React.FC = () => {
                                         Verificar Compatibilidade
                                     </button>
                                     {canRunResult && (
-                                        <div className="grid grid-cols-2 gap-3 mt-4 animate-fade-in">
-                                            <div className={`p-3 rounded-xl border flex items-center justify-center gap-2 ${canRunResult.min ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
-                                                {canRunResult.min ? <FaCheckCircle /> : <FaTimesCircle />} <span className="font-bold text-sm">MÍNIMO</span>
+                                        <div className="mt-4 animate-fade-in space-y-4">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className={`p-3 rounded-xl border flex items-center justify-center gap-2 ${canRunResult.min ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                                    {canRunResult.min ? <FaCheckCircle /> : <FaTimesCircle />} <span className="font-bold text-sm">MÍNIMO</span>
+                                                </div>
+                                                <div className={`p-3 rounded-xl border flex items-center justify-center gap-2 ${canRunResult.rec ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                                    {canRunResult.rec ? <FaCheckCircle /> : <FaTimesCircle />} <span className="font-bold text-sm">RECOMENDADO</span>
+                                                </div>
                                             </div>
-                                            <div className={`p-3 rounded-xl border flex items-center justify-center gap-2 ${canRunResult.rec ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
-                                                {canRunResult.rec ? <FaCheckCircle /> : <FaTimesCircle />} <span className="font-bold text-sm">RECOMENDADO</span>
-                                            </div>
+                                            {canRunResult.details && (
+                                                <div className="space-y-2 bg-black bg-opacity-30 p-4 rounded-xl">
+                                                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Detalhes da Comparação</h4>
+                                                    {canRunResult.details.cpu && (
+                                                        <div className={`flex items-start gap-2 text-sm ${canRunResult.details.cpu.status === 'excellent' ? 'text-green-400' : canRunResult.details.cpu.status === 'good' ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                            {canRunResult.details.cpu.status === 'excellent' ? <FaCheckCircle className="mt-0.5" /> : canRunResult.details.cpu.status === 'good' ? <FaCheckCircle className="mt-0.5" /> : <FaTimesCircle className="mt-0.5" />}
+                                                            <span><strong>CPU:</strong> {canRunResult.details.cpu.message}</span>
+                                                        </div>
+                                                    )}
+                                                    {canRunResult.details.gpu && (
+                                                        <div className={`flex items-start gap-2 text-sm ${canRunResult.details.gpu.status === 'excellent' ? 'text-green-400' : canRunResult.details.gpu.status === 'good' ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                            {canRunResult.details.gpu.status === 'excellent' ? <FaCheckCircle className="mt-0.5" /> : canRunResult.details.gpu.status === 'good' ? <FaCheckCircle className="mt-0.5" /> : <FaTimesCircle className="mt-0.5" />}
+                                                            <span><strong>GPU:</strong> {canRunResult.details.gpu.message}</span>
+                                                        </div>
+                                                    )}
+                                                    {canRunResult.details.ram && (
+                                                        <div className={`flex items-start gap-2 text-sm ${canRunResult.details.ram.status === 'excellent' ? 'text-green-400' : canRunResult.details.ram.status === 'good' ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                            {canRunResult.details.ram.status === 'excellent' ? <FaCheckCircle className="mt-0.5" /> : canRunResult.details.ram.status === 'good' ? <FaCheckCircle className="mt-0.5" /> : <FaTimesCircle className="mt-0.5" />}
+                                                            <span><strong>RAM:</strong> {canRunResult.details.ram.message}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

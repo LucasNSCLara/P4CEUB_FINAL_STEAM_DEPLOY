@@ -1,9 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 import requests
 from app.core.config import settings
-from app.models.schemas import Game, ParsedRequirements
+from app.models.schemas import (
+    Game, ParsedRequirements, UserRegister, UserLogin, UserResponse,
+    FavoriteGame, FavoriteResponse, CompareRequest, CompareResponse
+)
 from app.core.parser import parse_requirements
 from app.services.rawg_service import rawg_service
+from app.core import database, auth, comparator
 import json
 import redis
 
@@ -222,3 +226,136 @@ async def get_game_details(game_name: str):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# ============ AUTHENTICATION ENDPOINTS ============
+
+@router.post("/auth/register", response_model=UserResponse)
+async def register_user(user_data: UserRegister):
+    """Register a new user."""
+    # Check if email already exists
+    existing_user = database.get_user_by_email(user_data.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    
+    # Hash password
+    password_hash = auth.hash_password(user_data.password)
+    
+    # Create user
+    user_id = database.create_user(user_data.username, user_data.email, password_hash)
+    if not user_id:
+        raise HTTPException(status_code=500, detail="Erro ao criar usuário")
+    
+    # Generate token
+    token = auth.create_access_token(user_id, user_data.email, user_data.username)
+    
+    return UserResponse(
+        user_id=user_id,
+        username=user_data.username,
+        email=user_data.email,
+        token=token
+    )
+
+@router.post("/auth/login", response_model=UserResponse)
+async def login_user(login_data: UserLogin):
+    """Login user and return token."""
+    # Get user by email
+    user = database.get_user_by_email(login_data.email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+    
+    # Verify password
+    if not auth.verify_password(login_data.password, user['password_hash']):
+        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+    
+    # Generate token
+    token = auth.create_access_token(user['id'], user['email'], user['username'])
+    
+    return UserResponse(
+        user_id=user['id'],
+        username=user['username'],
+        email=user['email'],
+        token=token
+    )
+
+# ============ FAVORITES ENDPOINTS ============
+
+@router.get("/favorites", response_model=list[FavoriteResponse])
+async def get_favorites(current_user: dict = Depends(auth.get_current_user)):
+    """Get all favorites for the current user."""
+    favorites = database.get_user_favorites(current_user['user_id'])
+    return favorites
+
+@router.post("/favorites")
+async def add_favorite(favorite: FavoriteGame, current_user: dict = Depends(auth.get_current_user)):
+    """Add a game to user's favorites."""
+    success = database.add_favorite(
+        current_user['user_id'],
+        favorite.game_id,
+        favorite.game_name,
+        favorite.game_image,
+        favorite.game_rating
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail="Jogo já está nos favoritos")
+    
+    return {"message": "Jogo adicionado aos favoritos"}
+
+@router.delete("/favorites/{game_id}")
+async def remove_favorite(game_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Remove a game from user's favorites."""
+    success = database.remove_favorite(current_user['user_id'], game_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado nos favoritos")
+    
+    return {"message": "Jogo removido dos favoritos"}
+
+# ============ HARDWARE COMPARISON ENDPOINT ============
+
+@router.post("/compare", response_model=CompareResponse)
+async def compare_hardware(compare_data: CompareRequest):
+    """Compare user's hardware specs against game requirements."""
+    # Fetch game details to get requirements
+    try:
+        # Search for the game by ID
+        detail_url = f"{RAWG_BASE_URL}/games/{compare_data.game_id}"
+        response = requests.get(detail_url, params={"key": settings.RAWG_API_KEY}, timeout=10)
+        response.raise_for_status()
+        game_data = response.json()
+        
+        # Parse requirements
+        platforms = game_data.get("platforms", [])
+        pc_requirements = {}
+        
+        for p in platforms:
+            if p.get("platform", {}).get("slug") == "pc":
+                pc_requirements = p.get("requirements", {})
+                break
+        
+        parsed_min = parse_requirements(pc_requirements.get("minimum", ""))
+        parsed_rec = parse_requirements(pc_requirements.get("recommended", ""))
+        
+        # Compare specs
+        result = comparator.compare_specs(
+            user_cpu=compare_data.user_cpu,
+            user_gpu=compare_data.user_gpu,
+            user_ram=compare_data.user_ram,
+            min_cpu=parsed_min.cpu,
+            min_gpu=parsed_min.gpu,
+            min_ram=parsed_min.ram,
+            rec_cpu=parsed_rec.cpu,
+            rec_gpu=parsed_rec.gpu,
+            rec_ram=parsed_rec.ram
+        )
+        
+        return CompareResponse(**result)
+        
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Erro ao buscar dados do jogo: {str(e)}")
+    except Exception as e:
+        print(f"Error in compare_hardware: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao comparar especificações: {str(e)}")
+

@@ -2,10 +2,10 @@ import React from 'react';
 import { FaTimes, FaHeart, FaStar } from 'react-icons/fa';
 
 interface FavoriteGame {
-    id: number;
-    name: string;
-    background_image?: string;
-    rating?: number;
+    game_id: number;
+    game_name: string;
+    game_image?: string;
+    game_rating?: number;
 }
 
 interface FavoritesModalProps {
@@ -13,7 +13,7 @@ interface FavoritesModalProps {
     onClose: () => void;
     favorites: FavoriteGame[];
     onRemoveFavorite: (gameId: number) => void;
-    onSelectGame: (gameName: string) => void;
+    onSelectGame?: (gameName: string) => void;
 }
 
 const FavoritesModal: React.FC<FavoritesModalProps> = ({
@@ -54,14 +54,14 @@ const FavoritesModal: React.FC<FavoritesModalProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {favorites.map((game) => (
                                 <div
-                                    key={game.id}
+                                    key={game.game_id}
                                     className="glass-panel rounded-2xl overflow-hidden group cursor-pointer hover:border-game-accent transition-all duration-300 border border-transparent relative"
                                 >
                                     {/* Remove Button */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            onRemoveFavorite(game.id);
+                                            onRemoveFavorite(game.game_id);
                                         }}
                                         className="absolute top-2 right-2 z-10 bg-red-500 bg-opacity-80 hover:bg-opacity-100 text-white p-2 rounded-full transition-all transform hover:scale-110"
                                         title="Remover dos favoritos"
@@ -72,16 +72,18 @@ const FavoritesModal: React.FC<FavoritesModalProps> = ({
                                     {/* Game Card */}
                                     <div
                                         onClick={() => {
-                                            onSelectGame(game.name);
-                                            onClose();
+                                            if (onSelectGame) {
+                                                onSelectGame(game.game_name);
+                                                onClose();
+                                            }
                                         }}
                                     >
                                         {/* Image */}
                                         <div className="relative h-40 overflow-hidden">
-                                            {game.background_image ? (
+                                            {game.game_image ? (
                                                 <img
-                                                    src={game.background_image}
-                                                    alt={game.name}
+                                                    src={game.game_image}
+                                                    alt={game.game_name}
                                                     className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
                                                 />
                                             ) : (
@@ -94,13 +96,13 @@ const FavoritesModal: React.FC<FavoritesModalProps> = ({
 
                                         {/* Info */}
                                         <div className="p-4">
-                                            <h3 className="text-white font-bold text-lg mb-2 line-clamp-2" title={game.name}>
-                                                {game.name}
+                                            <h3 className="text-white font-bold text-lg mb-2 line-clamp-2" title={game.game_name}>
+                                                {game.game_name}
                                             </h3>
-                                            {game.rating && game.rating > 0 && (
+                                            {game.game_rating && game.game_rating > 0 && (
                                                 <div className="flex items-center gap-2">
                                                     <FaStar className="text-game-accent" />
-                                                    <span className="text-white font-bold">{game.rating}</span>
+                                                    <span className="text-white font-bold">{game.game_rating}</span>
                                                     <span className="text-gray-500 text-sm">/ 5</span>
                                                 </div>
                                             )}
