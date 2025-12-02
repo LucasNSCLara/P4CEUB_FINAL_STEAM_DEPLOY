@@ -22,15 +22,16 @@ def verify_password(password: str, hashed: str) -> bool:
     """Verify a password against its hash."""
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
-def create_access_token(user_id: int, email: str, username: str) -> str:
+def create_access_token(user_id: int, username: str, email: Optional[str] = None) -> str:
     """Create a JWT access token."""
     expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     payload = {
         "user_id": user_id,
-        "email": email,
         "username": username,
         "exp": expire
     }
+    if email:
+        payload["email"] = email
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     return token
 

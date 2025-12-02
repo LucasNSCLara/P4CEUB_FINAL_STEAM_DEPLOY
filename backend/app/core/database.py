@@ -21,7 +21,7 @@ def init_database():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
             password_hash TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -47,7 +47,7 @@ def init_database():
     print(f"Database initialized at {DATABASE_PATH}")
 
 # User operations
-def create_user(username: str, email: str, password_hash: str) -> Optional[int]:
+def create_user(username: str, password_hash: str, email: Optional[str] = None) -> Optional[int]:
     """Create a new user and return the user ID."""
     try:
         conn = get_db_connection()
@@ -62,6 +62,18 @@ def create_user(username: str, email: str, password_hash: str) -> Optional[int]:
         return user_id
     except sqlite3.IntegrityError:
         return None
+
+def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
+    """Get user by username."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return dict(row)
+    return None
 
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     """Get user by email."""

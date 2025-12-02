@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaTimes, FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
+import { FaTimes, FaUser, FaLock } from 'react-icons/fa';
 import axios from 'axios';
 
 interface LoginModalProps {
@@ -11,8 +11,7 @@ interface LoginModalProps {
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => {
     const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
+        username: '',
         password: ''
     });
     const [error, setError] = useState('');
@@ -31,8 +30,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
             if (activeTab === 'signup') {
                 // Register new user
                 const response = await axios.post(`${apiUrl}/api/auth/register`, {
-                    username: formData.name,
-                    email: formData.email,
+                    username: formData.username,
                     password: formData.password
                 });
 
@@ -44,7 +42,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
             } else {
                 // Login existing user
                 const response = await axios.post(`${apiUrl}/api/auth/login`, {
-                    email: formData.email,
+                    username: formData.username,
                     password: formData.password
                 });
 
@@ -106,33 +104,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                    {activeTab === 'signup' && (
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase ml-1">Nome</label>
-                            <div className="relative">
-                                <FaUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                                <input
-                                    type="text"
-                                    placeholder="Seu nome"
-                                    className="w-full bg-black bg-opacity-40 border border-gray-700 rounded-xl py-3 pl-12 pr-4 text-white focus:border-game-accent focus:outline-none transition-colors"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    required={activeTab === 'signup'}
-                                />
-                            </div>
-                        </div>
-                    )}
-
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase ml-1">Email</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase ml-1">Usuário</label>
                         <div className="relative">
-                            <FaEnvelope className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                            <FaUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
                             <input
-                                type="email"
-                                placeholder="seu@email.com"
+                                type="text"
+                                placeholder="Seu nome de usuário"
                                 className="w-full bg-black bg-opacity-40 border border-gray-700 rounded-xl py-3 pl-12 pr-4 text-white focus:border-game-accent focus:outline-none transition-colors"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                value={formData.username}
+                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                 required
                             />
                         </div>

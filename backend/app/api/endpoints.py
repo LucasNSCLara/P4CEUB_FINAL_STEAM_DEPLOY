@@ -232,48 +232,46 @@ async def get_game_details(game_name: str):
 @router.post("/auth/register", response_model=UserResponse)
 async def register_user(user_data: UserRegister):
     """Register a new user."""
-    # Check if email already exists
-    existing_user = database.get_user_by_email(user_data.email)
+    # Check if username already exists
+    existing_user = database.get_user_by_username(user_data.username)
     if existing_user:
-        raise HTTPException(status_code=400, detail="Email já cadastrado")
+        raise HTTPException(status_code=400, detail="Usuário já cadastrado")
     
     # Hash password
     password_hash = auth.hash_password(user_data.password)
     
     # Create user
-    user_id = database.create_user(user_data.username, user_data.email, password_hash)
+    user_id = database.create_user(user_data.username, password_hash)
     if not user_id:
         raise HTTPException(status_code=500, detail="Erro ao criar usuário")
     
     # Generate token
-    token = auth.create_access_token(user_id, user_data.email, user_data.username)
+    token = auth.create_access_token(user_id, user_data.username)
     
     return UserResponse(
         user_id=user_id,
         username=user_data.username,
-        email=user_data.email,
         token=token
     )
 
 @router.post("/auth/login", response_model=UserResponse)
 async def login_user(login_data: UserLogin):
     """Login user and return token."""
-    # Get user by email
-    user = database.get_user_by_email(login_data.email)
+    # Get user by username
+    user = database.get_user_by_username(login_data.username)
     if not user:
-        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
     
     # Verify password
     if not auth.verify_password(login_data.password, user['password_hash']):
-        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
     
     # Generate token
-    token = auth.create_access_token(user['id'], user['email'], user['username'])
+    token = auth.create_access_token(user['id'], user['username'])
     
     return UserResponse(
         user_id=user['id'],
         username=user['username'],
-        email=user['email'],
         token=token
     )
 

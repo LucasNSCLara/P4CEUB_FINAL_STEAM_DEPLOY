@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 class SystemRequirements(BaseModel):
     minimum: Optional[str] = None
@@ -33,20 +33,18 @@ class Game(BaseModel):
     file_size: Optional[str] = None
     similar_games: Optional[List[dict]] = None
 
-# Authentication schemas
+# Authentication schemas (simplified - username only)
 class UserRegister(BaseModel):
     username: str
-    email: EmailStr
     password: str
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    username: str
     password: str
 
 class UserResponse(BaseModel):
     user_id: int
     username: str
-    email: str
     token: str
 
 # Favorites schemas
